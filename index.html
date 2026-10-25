@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-readlog'; style-src 'unsafe-inline'; connect-src https://api.github.com; img-src 'self' data:; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>독서 기록</title>
+<meta name="description" content="말로 남기는 개인 독서 기록">
+<meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141617" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="독서 기록">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --bg:#f6f3ec; --surface:#fffdf8; --surface2:#efe9dd; --text:#24221e; --muted:#6b665c;
+  --line:#ddd5c6; --accent:#2f6f5e; --accent-text:#ffffff; --accent-soft:#dcebe4;
+  --danger:#b3261e; --danger-soft:#fbe4e1; --ok-soft:#e1f0e8; --mark:#ffe58a;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 2px 10px rgba(40,30,10,.05);
+  --tabbar:64px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141617; --surface:#1d2022; --surface2:#272b2e; --text:#ebe7df; --muted:#a39e94;
+    --line:#353a3e; --accent:#7cc4ad; --accent-text:#0d1a15; --accent-soft:#1e3830;
+    --danger:#ff8f86; --danger-soft:#3b2120; --ok-soft:#1d3229; --mark:#6b5a12;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.6 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  overflow-wrap:anywhere;word-break:keep-all;overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+[hidden]{display:none !important}
+h1,h2,h3,h4,h5{line-height:1.35;margin:0}
+p{margin:0}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* 상단 바 */
+.top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.bar{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:8px 16px;min-height:56px}
+.brand{font-size:1.15rem;font-weight:700;flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.top-actions{display:flex;align-items:center;gap:6px}
+.pill{display:inline-flex;align-items:center;min-height:32px;padding:2px 12px;border-radius:999px;background:var(--surface2);color:var(--muted);font-size:.85rem;white-space:nowrap}
+.pill.has{background:var(--accent-soft);color:var(--text)}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:1.2rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn.spin span{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 탭바: 폰은 하단 고정, 넓은 화면은 상단 */
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.tabs button{
+  flex:1;min-height:var(--tabbar);border:0;background:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  color:var(--muted);font-size:.85rem;font-weight:600;
+}
+.tabs .ti{font-size:1.3rem;line-height:1}
+.tabs button[aria-selected="true"]{color:var(--accent)}
+.tabs button[aria-selected="true"] .tl{border-bottom:2px solid var(--accent)}
+
+main{max-width:1100px;margin:0 auto;padding:16px 16px calc(var(--tabbar) + 24px + env(safe-area-inset-bottom))}
+main.no-tabs{padding-bottom:32px}
+
+@media (min-width:900px){
+  .tabs{position:static;max-width:1100px;margin:0 auto;border:0;background:none;padding:0 16px;gap:4px}
+  .tabs button{flex:0 0 auto;flex-direction:row;min-height:48px;padding:0 18px;font-size:1rem;border-radius:12px 12px 0 0;gap:8px}
+  .tabs .ti{font-size:1.1rem}
+  .tabs button[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:inset 0 -3px 0 var(--accent)}
+  .tabs button[aria-selected="true"] .tl{border:0}
+  main{padding-bottom:40px}
+}
+
+/* 레이아웃 */
+.cols{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+@media (min-width:900px){
+  .cols{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
+  .cols.list-detail{grid-template-columns:minmax(0,.85fr) minmax(0,1.3fr)}
+}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
+.card > * + *{margin-top:12px}
+.h{font-size:1.05rem;font-weight:700}
+.sub{color:var(--muted);font-size:.9rem}
+.big-num{font-size:2rem;font-weight:800;line-height:1.1}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row.end{justify-content:flex-end}
+.grow{flex:1 1 auto}
+
+/* 버튼 */
+.btn{
+  min-height:48px;padding:10px 18px;border-radius:12px;border:1px solid var(--line);
+  background:var(--surface2);cursor:pointer;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;
+}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.btn.danger{color:var(--danger);background:transparent;border-color:var(--danger)}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.rec{background:var(--danger);border-color:var(--danger);color:#fff}
+.link-btn{border:0;background:none;color:var(--accent);font-weight:600;cursor:pointer;padding:10px 4px;min-height:44px}
+
+/* 칩 */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  min-height:44px;max-width:100%;padding:8px 14px;border-radius:22px;border:1px solid var(--line);
+  background:var(--surface);cursor:pointer;font-size:.95rem;text-align:left;
+}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:700}
+.chip.minor{color:var(--muted);border-style:dashed}
+.tag{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--surface2);color:var(--muted);font-size:.85rem;border:0;cursor:pointer;min-height:32px;max-width:100%}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+
+/* 입력 */
+label.h{display:block}
+input[type=text],input[type=password],input[type=search],textarea{
+  width:100%;max-width:100%;border:1px solid var(--line);border-radius:12px;background:var(--bg);
+  padding:12px 14px;font-size:1rem;min-height:48px;
+}
+textarea{min-height:38vh;resize:vertical;font-size:1.1rem;line-height:1.7}
+@media (min-width:900px){textarea{min-height:340px}}
+.field + .field{margin-top:14px}
+.field label{display:block;font-weight:600;margin-bottom:6px}
+.hint{color:var(--muted);font-size:.85rem;margin-top:6px}
+.sel{color:var(--muted);font-size:.95rem}
+.sel b{color:var(--text)}
+
+.msg{border-radius:12px;padding:10px 14px;font-size:.95rem}
+.msg:empty{display:none}
+.msg.ok{background:var(--ok-soft)}
+.msg.err{background:var(--danger-soft);color:var(--danger)}
+.msg.info{background:var(--surface2)}
+
+/* 기록 카드 */
+.entry{border-top:1px solid var(--line);padding-top:12px}
+.entry:first-child{border-top:0;padding-top:0}
+.entry > * + *{margin-top:6px}
+.meta{color:var(--muted);font-size:.85rem;display:flex;flex-wrap:wrap;gap:4px 10px}
+.one{font-weight:700;font-size:1.02rem}
+.note{white-space:pre-wrap}
+.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:.95rem}
+.kv dt{color:var(--muted);font-weight:600}
+.kv dd{margin:0}
+details.raw summary{cursor:pointer;color:var(--muted);font-size:.9rem;min-height:36px;display:flex;align-items:center}
+details.raw p{background:var(--surface2);border-radius:10px;padding:10px 12px;white-space:pre-wrap;font-size:.92rem}
+.entry-btn{display:block;width:100%;text-align:left;border:0;background:none;padding:0;cursor:pointer}
+.empty{color:var(--muted);padding:8px 0}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+
+/* 책 목록 */
+#booksBox{display:flex;flex-direction:column;gap:16px}
+.book-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.book-item{
+  width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;background:var(--surface);
+  padding:12px 14px;cursor:pointer;min-height:60px;display:flex;flex-direction:column;gap:2px;
+}
+.book-item[aria-current="true"]{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
+.book-item .t{font-weight:700}
+.book-item .s{color:var(--muted);font-size:.85rem}
+.back{margin:-6px 0 0 -4px}
+@media (min-width:900px){.back{display:none}.back + .h{margin-top:0}}
+@media (max-width:899px){
+  .list-detail.has-detail .books-list-col{display:none}
+  .list-detail:not(.has-detail) .books-detail-col{display:none}
+}
+.quote-list,.action-list{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.quote-list li{border-left:4px solid var(--accent);padding:4px 0 4px 12px}
+.action-list li{background:var(--surface2);border-radius:10px;padding:10px 12px}
+.section-t{font-weight:700;font-size:.95rem;color:var(--muted);margin-top:18px !important}
+
+/* 복습 카드 */
+.qcard{min-height:240px;display:flex;flex-direction:column;justify-content:space-between;gap:16px}
+.qcard.is-empty{min-height:0;justify-content:flex-start;gap:0}
+.qlabel{color:var(--accent);font-weight:700;font-size:.9rem}
+.qtext{font-size:1.3rem;font-weight:700;line-height:1.5}
+.reveal{background:var(--surface2);border-radius:12px;padding:12px 14px}
+.reveal > * + *{margin-top:6px}
+
+/* 주간 복습지 마크다운 */
+.md h3{font-size:1.25rem}
+.md h4{font-size:1.1rem}
+.md h5{font-size:1rem}
+.md ul{margin:0;padding-left:1.3em}
+.md ul.task{list-style:none;padding-left:0}
+.md li + li{margin-top:4px}
+.md ul.task li{display:flex;gap:8px;align-items:flex-start}
+.md ul.task input{width:20px;height:20px;margin-top:3px;flex:0 0 auto;accent-color:var(--accent)}
+.md blockquote{margin:0;border-left:4px solid var(--line);padding:4px 0 4px 12px;color:var(--muted)}
+.md details{border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+/* 블록 사이 간격: 개별 margin:0 규칙보다 우선하도록 :not()으로 구체성을 올린다 */
+.md > :not(:first-child), .md details > :not(:first-child){margin-top:10px}
+.md > h4:not(:first-child), .md > h5:not(:first-child){margin-top:20px}
+.md summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;align-items:center}
+.md hr{border:0;border-top:1px solid var(--line)}
+
+.setup-wrap{max-width:560px;margin:0 auto}
+.steps{margin:0;padding-left:1.2em;color:var(--muted);font-size:.92rem}
+.steps li + li{margin-top:4px}
+code{background:var(--surface2);border-radius:6px;padding:1px 6px;font-size:.9em}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <h1 class="brand"><span aria-hidden="true">📚</span><span>독서 기록</span></h1>
+    <div class="top-actions" id="topActions" hidden>
+      <span class="pill" id="pendingPill" title="정리 대기 중인 메모">대기 –</span>
+      <button class="icon-btn" id="refreshBtn" data-act="refresh" aria-label="새로고침"><span aria-hidden="true">↻</span></button>
+      <button class="icon-btn" data-act="open-setup" aria-label="설정"><span aria-hidden="true">⚙</span></button>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="화면" hidden>
+    <button role="tab" id="t-write" data-tab="write" aria-controls="tab-write"><span class="ti" aria-hidden="true">✍️</span><span class="tl">기록</span></button>
+    <button role="tab" id="t-books" data-tab="books" aria-controls="tab-books"><span class="ti" aria-hidden="true">📖</span><span class="tl">책</span></button>
+    <button role="tab" id="t-review" data-tab="review" aria-controls="tab-review"><span class="ti" aria-hidden="true">🔁</span><span class="tl">복습</span></button>
+  </nav>
+</header>
+
+<main id="main">
+  <!-- 설정 -->
+  <section id="setup" hidden>
+    <div class="setup-wrap">
+      <form class="card" id="setupForm" autocomplete="off" novalidate>
+        <h2 class="h">GitHub 연결</h2>
+        <p class="sub">입력한 값은 이 기기의 브라우저에만 저장돼요. 다른 곳으로 보내지 않고 GitHub API에만 사용해요.</p>
+        <div class="field">
+          <label for="ownerInput">GitHub 아이디</label>
+          <input type="text" id="ownerInput" autocapitalize="off" spellcheck="false" placeholder="예: my-id">
+        </div>
+        <div class="field">
+          <label for="repoInput">저장소 이름</label>
+          <input type="text" id="repoInput" autocapitalize="off" spellcheck="false" value="readlog-data">
+        </div>
+        <div class="field">
+          <label for="tokenInput">Fine-grained 토큰</label>
+          <input type="password" id="tokenInput" autocapitalize="off" spellcheck="false" autocomplete="new-password" placeholder="github_pat_...">
+          <p class="hint" id="tokenHint">저장소 하나만 선택하고, 권한은 Contents: Read and write, Actions: Read and write.</p>
+        </div>
+        <p class="msg" id="setupMsg" role="status" aria-live="polite"></p>
+        <div class="row">
+          <button type="submit" class="btn primary grow" id="setupSave">연결 확인 후 저장</button>
+          <button type="button" class="btn ghost" id="setupClose" data-act="close-setup" hidden>닫기</button>
+        </div>
+        <div class="row" id="clearRow" hidden>
+          <button type="button" class="btn danger wide" data-act="clear-setup">이 기기에서 설정 지우기</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- 기록 -->
+  <section id="tab-write" class="panel" role="tabpanel" aria-labelledby="t-write" hidden>
+    <div class="cols">
+      <div class="col">
+        <div class="card">
+          <h2 class="h">어떤 책인가요?</h2>
+          <div class="chips" id="bookChips"></div>
+          <div id="bookInputWrap" hidden>
+            <input type="text" id="bookInput" placeholder="책 제목을 입력하세요" aria-label="책 제목 직접 입력">
+          </div>
+          <p class="sel" id="bookSel"></p>
+          <label for="memo" class="h">감상</label>
+          <textarea id="memo" placeholder="읽고 떠오른 생각을 짧게 남겨요. 키보드의 마이크로 말해도 좋아요."></textarea>
+          <div class="row">
+            <button type="button" class="btn" id="micBtn" data-act="mic" hidden>🎤 받아쓰기</button>
+            <button type="button" class="btn primary grow" id="saveBtn" data-act="save">저장</button>
+          </div>
+          <p class="msg" id="writeMsg" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h2 class="h">정리 대기</h2>
+          <div id="pendingBox"></div>
+        </div>
+        <div class="card">
+          <h2 class="h">최근 정리된 기록</h2>
+          <div id="recentBox"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 책 -->
+  <section id="tab-books" class="panel" role="tabpanel" aria-labelledby="t-books" hidden>
+    <div class="cols list-detail" id="booksCols">
+      <div class="col books-list-col">
+        <div class="card">
+          <label for="searchInput" class="h">검색</label>
+          <input type="search" id="searchInput" placeholder="제목, 메모, 태그">
+        </div>
+        <div id="booksBox"></div>
+      </div>
+      <div class="col books-detail-col">
+        <div class="card" id="detailBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 복습 -->
+  <section id="tab-review" class="panel" role="tabpanel" aria-labelledby="t-review" hidden>
+    <div class="cols">
+      <div class="col">
+        <div class="card qcard" id="cardBox"></div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <div class="row">
+            <h2 class="h grow">주간 복습지</h2>
+            <button type="button" class="btn" id="dispatchBtn" data-act="dispatch">지금 만들기</button>
+          </div>
+          <p class="msg" id="reviewMsg" role="status" aria-live="polite"></p>
+          <div id="weeklyBox"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script nonce="readlog">
+(function(){
+'use strict';
+
+/* ---------- 기본 도구 ---------- */
+const $ = (s) => document.querySelector(s);
+const API = 'https://api.github.com';
+const K = { cfg:'readlog.cfg', draft:'readlog.draft', tab:'readlog.tab' };
+const NO_BOOK = '';
+
+function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+// innerHTML에 들어가는 모든 데이터는 이 함수를 거친다
+function esc(v){
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// 검색어 강조: 원문을 조각내 각각 escape한 뒤 <mark>로 감싼다
+function hl(text, q){
+  text = String(text == null ? '' : text);
+  if(!q) return esc(text);
+  const low = text.toLowerCase(), ql = q.toLowerCase();
+  let out = '', i = 0, j;
+  while((j = low.indexOf(ql, i)) !== -1){
+    out += esc(text.slice(i, j)) + '<mark>' + esc(text.slice(j, j + q.length)) + '</mark>';
+    i = j + q.length;
+  }
+  return out + esc(text.slice(i));
+}
+function bookLabel(b){ return b === NO_BOOK ? '책 미지정' : b; }
+
+/* ---------- 상태 ---------- */
+const S = {
+  cfg:null, entries:[], pending:null, review:null, errors:{},
+  loading:false, loaded:false,
+  tab:'write', book:'', typing:false,
+  detail:null, query:'',
+  card:null, revealed:false,
+};
+
+function validCfg(c){
+  return c && typeof c.owner === 'string' && c.owner && typeof c.repo === 'string' && c.repo && typeof c.token === 'string' && c.token;
+}
+
+/* ---------- GitHub API ---------- */
+function repoPath(c){ c = c || S.cfg; return '/repos/' + encodeURIComponent(c.owner) + '/' + encodeURIComponent(c.repo); }
+
+async function gh(path, opt){
+  opt = opt || {};
+  const c = opt.cfg || S.cfg;
+  const headers = {
+    'Authorization': 'Bearer ' + c.token,
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Accept': opt.raw ? 'application/vnd.github.raw' : 'application/vnd.github+json',
+  };
+  const init = { method: opt.method || 'GET', headers, cache:'no-store' };
+  if(opt.body !== undefined){ headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opt.body); }
+  try{
+    return await fetch(API + path, init);
+  }catch(e){
+    throw new Error('GitHub에 연결할 수 없어요. 인터넷 연결을 확인해 주세요.');
+  }
+}
+
+async function errText(res){
+  let detail = '';
+  try{ const j = await res.json(); detail = (j && j.message) ? String(j.message) : ''; }catch(e){}
+  const base = ({
+    401:'토큰이 올바르지 않거나 만료됐어요. 설정에서 토큰을 확인해 주세요.',
+    403:'권한이 부족하거나 요청 한도를 넘었어요. 토큰 권한을 확인해 주세요.',
+    404:'저장소나 파일을 찾을 수 없어요. 아이디·저장소 이름과 토큰의 저장소 범위를 확인해 주세요.',
+    409:'저장소 상태가 충돌했어요. 잠시 후 다시 시도해 주세요.',
+    422:'GitHub가 요청을 받아들이지 않았어요.',
+  })[res.status] || 'GitHub 요청이 실패했어요.';
+  return base + ' (HTTP ' + res.status + (detail ? ' · ' + detail : '') + ')';
+}
+
+function toB64(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+function stamp(d){
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+
+/* ---------- 데이터 ---------- */
+function normEntry(o, i){
+  const s = v => typeof v === 'string' ? v : (v == null ? '' : String(v));
+  const a = v => Array.isArray(v) ? v.map(s).filter(x => x.trim()) : (v ? [s(v)] : []);
+  return {
+    id: s(o.id) || ('line-' + i), source: s(o.source), book: s(o.book).trim(), author: s(o.author).trim(),
+    date: s(o.date), one_line: s(o.one_line), note: s(o.note), raw_part: s(o.raw_part),
+    quotes: a(o.quotes), question: s(o.question), action: s(o.action), connection: s(o.connection),
+    tags: a(o.tags), created_at: s(o.created_at),
+  };
+}
+function parseEntries(text){
+  const byId = new Map();
+  String(text).split(/\r?\n/).forEach((line, i) => {
+    line = line.trim();
+    if(!line) return;
+    try{
+      const o = JSON.parse(line);
+      if(o && typeof o === 'object' && !Array.isArray(o)){ const e = normEntry(o, i); byId.delete(e.id); byId.set(e.id, e); }
+    }catch(e){}
+  });
+  return [...byId.values()];
+}
+function sortKey(e){ return (e.date || '') + '|' + (e.created_at || '') + '|' + e.id; }
+function byNewest(a, b){ const x = sortKey(a), y = sortKey(b); return x < y ? 1 : x > y ? -1 : 0; }
+
+function books(){
+  const m = new Map();
+  for(const e of S.entries){
+    let b = m.get(e.book);
+    if(!b){ b = { name:e.book, author:'', entries:[], last:'' }; m.set(e.book, b); }
+    b.entries.push(e);
+  }
+  for(const b of m.values()){
+    b.entries.sort(byNewest);
+    b.last = b.entries[0].date;
+    b.key = sortKey(b.entries[0]);
+    b.author = (b.entries.find(e => e.author) || {}).author || '';
+  }
+  return [...m.values()].sort((a, b) => a.key < b.key ? 1 : a.key > b.key ? -1 : 0);
+}
+
+async function loadEntries(){
+  const res = await gh(repoPath() + '/contents/data/entries.jsonl', { raw:true });
+  if(res.status === 404){ S.entries = []; return; }
+  if(!res.ok) throw new Error(await errText(res));
+  S.entries = parseEntries(await res.text()).sort(byNewest);
+}
+async function loadPending(){
+  const res = await gh(repoPath() + '/contents/inbox');
+  if(res.status === 404){ S.pending = 0; return; }
+  if(!res.ok) throw new Error(await errText(res));
+  const j = await res.json();
+  S.pending = Array.isArray(j) ? j.filter(x => x && x.type === 'file' && /\.txt$/i.test(String(x.name))).length : 0;
+}
+async function loadReview(){
+  const res = await gh(repoPath() + '/contents/reviews');
+  if(res.status === 404){ S.review = null; return; }
+  if(!res.ok) throw new Error(await errText(res));
+  const j = await res.json();
+  const names = (Array.isArray(j) ? j : []).filter(x => x && x.type === 'file' && /\.md$/i.test(String(x.name))).map(x => String(x.name)).sort();
+  if(!names.length){ S.review = null; return; }
+  const name = names[names.length - 1];
+  const r2 = await gh(repoPath() + '/contents/reviews/' + encodeURIComponent(name), { raw:true });
+  if(!r2.ok) throw new Error(await errText(r2));
+  S.review = { name, text: await r2.text() };
+}
+
+async function loadAll(){
+  if(S.loading) return;
+  S.loading = true; S.errors = {};
+  $('#refreshBtn').classList.add('spin');
+  renderAll();
+  const jobs = { entries:loadEntries(), pending:loadPending(), review:loadReview() };
+  await Promise.all(Object.keys(jobs).map(k => jobs[k].catch(e => { S.errors[k] = e.message || String(e); })));
+  S.loading = false; S.loaded = true;
+  $('#refreshBtn').classList.remove('spin');
+  if(!S.card || !S.entries.some(e => e.id === S.card.id)) pickCard();
+  renderAll();
+}
+
+/* ---------- 마크다운 (escape 후 허용 패턴만 변환) ---------- */
+function mdInline(s){
+  return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+function md(src){
+  const lines = esc(String(src).replace(/\r\n?/g, '\n')).split('\n');
+  const out = [];
+  let list = null, para = [];
+  const closeList = () => { if(list){ out.push('</ul>'); list = null; } };
+  const closePara = () => { if(para.length){ out.push('<p>' + para.join('<br>') + '</p>'); para = []; } };
+  const openList = (kind) => { if(list !== kind){ closeList(); out.push(kind === 'task' ? '<ul class="task">' : '<ul>'); list = kind; } };
+  for(const raw of lines){
+    let t = raw.trim();
+    if(!t){ closePara(); closeList(); continue; }
+    // <details>, </details>, <summary>..</summary> : escape된 태그만 다시 살린다 (속성 불가)
+    if(/^&lt;\/?details&gt;/i.test(t) || /^&lt;summary&gt;/i.test(t)){
+      closePara(); closeList();
+      out.push(t
+        .replace(/&lt;(\/?)details&gt;/gi, '<$1details>')
+        .replace(/&lt;summary&gt;(.*?)&lt;\/summary&gt;/gi, (m, x) => '<summary>' + mdInline(x) + '</summary>'));
+      continue;
+    }
+    let m;
+    if((m = t.match(/^(#{1,3})\s+(.*)$/))){
+      closePara(); closeList();
+      const n = m[1].length + 2;
+      out.push('<h' + n + '>' + mdInline(m[2]) + '</h' + n + '>');
+    }else if((m = t.match(/^[-*]\s+\[( |x|X)\]\s*(.*)$/))){
+      closePara(); openList('task');
+      out.push('<li><input type="checkbox" disabled' + (m[1] === ' ' ? '' : ' checked') + '><span>' + mdInline(m[2]) + '</span></li>');
+    }else if((m = t.match(/^[-*]\s+(.*)$/))){
+      closePara(); openList('ul');
+      out.push('<li>' + mdInline(m[1]) + '</li>');
+    }else if((m = t.match(/^&gt;\s?(.*)$/))){
+      closePara(); closeList();
+      out.push('<blockquote>' + mdInline(m[1]) + '</blockquote>');
+    }else if(/^(-{3,}|\*{3,})$/.test(t)){
+      closePara(); closeList(); out.push('<hr>');
+    }else{
+      closeList(); para.push(mdInline(t));
+    }
+  }
+  closePara(); closeList();
+  return out.join('\n');
+}
+
+/* ---------- 화면 ---------- */
+function setMsg(id, text, kind){
+  const el = $(id);
+  el.textContent = text || '';
+  el.className = 'msg' + (text ? ' ' + (kind || 'info') : '');
+}
+
+function showSetup(open){
+  const has = validCfg(S.cfg);
+  $('#setup').hidden = !open;
+  $('#tabs').hidden = open || !has;
+  $('#topActions').hidden = open || !has;
+  $('#main').classList.toggle('no-tabs', open || !has);
+  document.querySelectorAll('.panel').forEach(p => { p.hidden = open || p.id !== 'tab-' + S.tab; });
+  if(open){
+    $('#ownerInput').value = has ? S.cfg.owner : '';
+    $('#repoInput').value = has ? S.cfg.repo : 'readlog-data';
+    $('#tokenInput').value = '';
+    $('#tokenInput').placeholder = has ? '저장된 토큰 유지 (바꾸려면 새로 입력)' : 'github_pat_...';
+    $('#setupClose').hidden = !has;
+    $('#clearRow').hidden = !has;
+    setMsg('#setupMsg', '');
+    window.scrollTo(0, 0);
+  }
+}
+
+function setTab(t){
+  if(!['write','books','review'].includes(t)) t = 'write';
+  S.tab = t; lsSet(K.tab, t);
+  document.querySelectorAll('.tabs [role=tab]').forEach(b => {
+    const on = b.dataset.tab === t;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll('.panel').forEach(p => { p.hidden = p.id !== 'tab-' + t; });
+  window.scrollTo(0, 0);
+}
+
+function renderAll(){
+  renderPending(); renderChips(); renderRecent(); renderBooks(); renderDetail(); renderCard(); renderWeekly();
+}
+
+function loadingOr(key, fallback){
+  if(S.errors[key]) return '<p class="msg err">' + esc(S.errors[key]) + '</p>';
+  if(!S.loaded) return '<p class="empty">불러오는 중…</p>';
+  return fallback;
+}
+
+function renderPending(){
+  const n = S.pending;
+  const pill = $('#pendingPill');
+  pill.textContent = n == null ? '대기 –' : '대기 ' + n;
+  pill.classList.toggle('has', !!n);
+  $('#pendingBox').innerHTML = loadingOr('pending',
+    '<p><span class="big-num">' + esc(n || 0) + '</span> 건</p>' +
+    '<p class="sub">' + (n ? '저장한 메모가 정리를 기다리고 있어요. 정리가 끝나면 책 탭에 나타나요.' : '모든 메모가 정리됐어요.') + '</p>');
+}
+
+function renderChips(){
+  const recent = books().filter(b => b.name !== NO_BOOK).slice(0, 5).map(b => b.name);
+  if(S.book && !recent.includes(S.book) && !S.typing) recent.unshift(S.book);
+  let h = recent.map(n => '<button type="button" class="chip" data-act="pick-book" data-book="' + esc(n) + '" aria-pressed="' + (S.book === n && !S.typing) + '">' + esc(n) + '</button>').join('');
+  h += '<button type="button" class="chip minor" data-act="type-book" aria-pressed="' + S.typing + '">✏️ 직접 입력</button>';
+  if(S.book || S.typing) h += '<button type="button" class="chip minor" data-act="clear-book">선택 해제</button>';
+  $('#bookChips').innerHTML = h;
+  $('#bookInputWrap').hidden = !S.typing;
+  $('#bookSel').innerHTML = S.book
+    ? '선택한 책: <b>' + esc(S.book) + '</b>'
+    : '책을 고르지 않으면 메모만 저장돼요.';
+}
+
+function entryHTML(e, opt){
+  opt = opt || {};
+  const q = opt.q || '';
+  let h = '<div class="meta">' + (opt.showBook ? '<span>📖 ' + hl(bookLabel(e.book), q) + '</span>' : '') + '<span>' + esc(e.date) + '</span></div>';
+  if(e.one_line) h += '<p class="one">' + hl(e.one_line, q) + '</p>';
+  if(e.note) h += '<p class="note' + (opt.clamp ? ' clamp' : '') + '">' + hl(e.note, q) + '</p>';
+  if(opt.full){
+    let kv = '';
+    if(e.question) kv += '<dt>질문</dt><dd>' + esc(e.question) + '</dd>';
+    if(e.connection) kv += '<dt>연결</dt><dd>' + esc(e.connection) + '</dd>';
+    if(kv) h += '<dl class="kv">' + kv + '</dl>';
+  }
+  if(e.tags.length){
+    // 버튼 안에 들어가는 카드(staticTags)에서는 태그를 버튼으로 만들지 않는다
+    h += '<div class="tags">' + e.tags.map(t => opt.staticTags
+      ? '<span class="tag">#' + hl(t, q) + '</span>'
+      : '<button type="button" class="tag" data-act="tag" data-tag="' + esc(t) + '">#' + hl(t, q) + '</button>').join('') + '</div>';
+  }
+  if(opt.full && e.raw_part) h += '<details class="raw"><summary>받아쓰기 원문</summary><p>' + esc(e.raw_part) + '</p></details>';
+  return h;
+}
+
+function renderRecent(){
+  const list = S.entries.slice(0, 3);
+  $('#recentBox').innerHTML = loadingOr('entries', list.length
+    ? list.map(e => '<div class="entry"><button type="button" class="entry-btn" data-act="open-book" data-book="' + esc(e.book) + '">' + entryHTML(e, { showBook:true, clamp:true, staticTags:true }) + '</button></div>').join('')
+    : '<p class="empty">아직 정리된 기록이 없어요. 첫 감상을 남겨 보세요.</p>');
+}
+
+function matches(e, q){
+  q = q.toLowerCase();
+  return [e.book, e.author, e.one_line, e.note, e.question, e.action, e.connection, e.quotes.join(' '), e.tags.join(' ')]
+    .some(v => v.toLowerCase().includes(q));
+}
+
+function renderBooks(){
+  const q = S.query.trim();
+  let all = books();
+  let h = '';
+  if(!S.loaded || S.errors.entries){ $('#booksBox').innerHTML = '<div class="card">' + loadingOr('entries', '') + '</div>'; return; }
+  if(!all.length){ $('#booksBox').innerHTML = '<div class="card"><p class="empty">아직 정리된 책이 없어요.</p></div>'; return; }
+  let hits = [];
+  if(q){
+    hits = S.entries.filter(e => matches(e, q));
+    const hitBooks = new Set(hits.map(e => e.book));
+    all = all.filter(b => hitBooks.has(b.name));
+  }
+  h += '<div class="card"><div class="row"><h2 class="h grow">' + (q ? '검색 결과' : '책 목록') + '</h2><span class="sub">' + esc(all.length) + '권</span></div>';
+  if(all.length){
+    h += '<ul class="book-list">' + all.map(b => {
+      const n = q ? hits.filter(e => e.book === b.name).length : b.entries.length;
+      return '<li><button type="button" class="book-item" data-act="open-book" data-book="' + esc(b.name) + '" aria-current="' + (S.detail === b.name) + '">' +
+        '<span class="t">' + hl(bookLabel(b.name), q) + '</span>' +
+        (b.author ? '<span class="s">' + esc(b.author) + '</span>' : '') +
+        '<span class="s">' + (q ? '일치 ' : '기록 ') + esc(n) + '개 · 최근 ' + esc(b.last) + '</span></button></li>';
+    }).join('') + '</ul>';
+  }else{
+    h += '<p class="empty">“' + esc(q) + '”와 일치하는 기록이 없어요.</p>';
+  }
+  h += '</div>';
+  if(q && hits.length){
+    h += '<div class="card"><h2 class="h">일치하는 기록 ' + esc(hits.length) + '개</h2>' +
+      hits.slice(0, 30).map(e => '<div class="entry"><button type="button" class="entry-btn" data-act="open-book" data-book="' + esc(e.book) + '">' + entryHTML(e, { showBook:true, clamp:true, q, staticTags:true }) + '</button></div>').join('') + '</div>';
+  }
+  $('#booksBox').innerHTML = h;
+}
+
+function renderDetail(){
+  const cols = $('#booksCols');
+  const b = S.detail == null ? null : books().find(x => x.name === S.detail);
+  cols.classList.toggle('has-detail', !!b);
+  if(!b){
+    $('#detailBox').innerHTML = '<p class="empty">책을 고르면 기억할 문구, 적용할 행동, 날짜별 기록을 볼 수 있어요.</p>';
+    return;
+  }
+  let h = '<button type="button" class="link-btn back" data-act="close-book">← 책 목록</button>';
+  h += '<h2 class="h" id="detailTitle">' + esc(bookLabel(b.name)) + '</h2>';
+  h += '<p class="sub">' + (b.author ? esc(b.author) + ' · ' : '') + '기록 ' + esc(b.entries.length) + '개 · 최근 ' + esc(b.last) + '</p>';
+
+  const quotes = [];
+  b.entries.forEach(e => e.quotes.forEach(q => quotes.push({ q, d:e.date })));
+  h += '<h3 class="section-t">기억할 문구</h3>';
+  h += quotes.length
+    ? '<ul class="quote-list">' + quotes.map(x => '<li><p>' + esc(x.q) + '</p><p class="sub">' + esc(x.d) + '</p></li>').join('') + '</ul><p class="hint">받아쓰기 요약에서 뽑은 문구라 책 원문과 다를 수 있어요.</p>'
+    : '<p class="empty">아직 없어요.</p>';
+
+  const acts = b.entries.filter(e => e.action.trim());
+  h += '<h3 class="section-t">적용할 행동</h3>';
+  h += acts.length
+    ? '<ul class="action-list">' + acts.map(e => '<li><p>' + esc(e.action) + '</p><p class="sub">' + esc(e.date) + '</p></li>').join('') + '</ul>'
+    : '<p class="empty">아직 없어요.</p>';
+
+  h += '<h3 class="section-t">날짜별 기록</h3>';
+  h += '<div>' + b.entries.map(e => '<div class="entry">' + entryHTML(e, { full:true }) + '</div>').join('') + '</div>';
+  $('#detailBox').innerHTML = h;
+}
+
+function pickCard(){
+  const pool = S.entries.filter(e => e.question.trim());
+  const src = pool.length ? pool : S.entries;
+  if(!src.length){ S.card = null; return; }
+  let c, tries = 0;
+  do{ c = src[Math.floor(Math.random() * src.length)]; }while(src.length > 1 && S.card && c.id === S.card.id && ++tries < 10);
+  S.card = c; S.revealed = false;
+}
+
+function renderCard(){
+  const c = S.card;
+  $('#cardBox').classList.toggle('is-empty', !S.loaded || !!S.errors.entries || !c);
+  if(!S.loaded || S.errors.entries || !c){
+    $('#cardBox').innerHTML = '<h2 class="h">복습 카드</h2>' + loadingOr('entries', '<p class="empty">기록이 쌓이면 여기서 다시 떠올려 볼 수 있어요.</p>');
+    return;
+  }
+  let h = '<div><p class="qlabel">' + (c.question ? '질문' : '이 기록 기억나세요?') + '</p>';
+  h += '<p class="qtext" id="cardQ">' + esc(c.question || c.one_line || c.note) + '</p></div>';
+  if(S.revealed){
+    h += '<div class="reveal" id="cardReveal">' +
+      '<div class="meta"><span>📖 ' + esc(bookLabel(c.book)) + '</span><span>' + esc(c.date) + '</span></div>' +
+      (c.one_line ? '<p class="one">' + esc(c.one_line) + '</p>' : '') +
+      (c.note ? '<p class="note">' + esc(c.note) + '</p>' : '') +
+      (c.action ? '<p class="sub">실천: ' + esc(c.action) + '</p>' : '') +
+      '</div>';
+  }
+  h += '<div class="row">' +
+    (S.revealed
+      ? '<button type="button" class="btn grow" data-act="open-book" data-book="' + esc(c.book) + '">책 보기</button>'
+      : '<button type="button" class="btn primary grow" data-act="reveal">내 기록 보기</button>') +
+    '<button type="button" class="btn" data-act="next-card">다른 카드</button></div>';
+  $('#cardBox').innerHTML = h;
+}
+
+function renderWeekly(){
+  const r = S.review;
+  $('#weeklyBox').innerHTML = loadingOr('review', r
+    ? '<p class="sub">' + esc(r.name) + '</p><div class="md">' + md(r.text) + '</div>'
+    : '<p class="empty">아직 주간 복습지가 없어요. “지금 만들기”로 바로 만들 수 있어요.</p>');
+}
+
+/* ---------- 임시저장 ---------- */
+function saveDraft(){
+  const text = $('#memo').value;
+  if(!text && !S.book) lsDel(K.draft);
+  else lsSet(K.draft, { text, book:S.book });
+}
+function restoreDraft(){
+  const d = lsGet(K.draft);
+  if(d && typeof d === 'object'){
+    if(typeof d.text === 'string') $('#memo').value = d.text;
+    if(typeof d.book === 'string') S.book = d.book;
+  }
+}
+
+/* ---------- 동작 ---------- */
+async function saveMemo(){
+  const memo = $('#memo');
+  const text = memo.value.trim();
+  if(!text){ setMsg('#writeMsg', '감상을 먼저 적어 주세요.', 'err'); memo.focus(); return; }
+  if(listening) stopMic();
+  const book = S.book.replace(/\s+/g, ' ').trim();
+  const content = (book ? '책: ' + book + '\n' : '') + text + '\n';
+  const name = stamp(new Date());
+  const btn = $('#saveBtn');
+  btn.disabled = true; btn.textContent = '저장 중…';
+  setMsg('#writeMsg', '');
+  try{
+    const res = await gh(repoPath() + '/contents/inbox/' + name + '.txt', {
+      method:'PUT', body:{ message:'memo: ' + name + (book ? ' ' + book : ''), content:toB64(content), branch:'main' },
+    });
+    if(res.status === 200 || res.status === 201){
+      memo.value = '';
+      saveDraft();
+      S.pending = (S.pending || 0) + 1;
+      renderPending();
+      setMsg('#writeMsg', '저장했어요. 정리되면 책 탭에 나타나요.', 'ok');
+    }else{
+      setMsg('#writeMsg', '저장하지 못했어요. 입력한 내용은 그대로 있어요. ' + await errText(res), 'err');
+    }
+  }catch(e){
+    setMsg('#writeMsg', '저장하지 못했어요. 입력한 내용은 그대로 있어요. ' + (e.message || e), 'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '저장';
+  }
+}
+
+async function dispatchReview(){
+  const btn = $('#dispatchBtn');
+  btn.disabled = true; btn.textContent = '요청 중…';
+  setMsg('#reviewMsg', '');
+  try{
+    const res = await gh(repoPath() + '/actions/workflows/readlog.yml/dispatches', {
+      method:'POST', body:{ ref:'main', inputs:{ mode:'review' } },
+    });
+    if(res.status === 204) setMsg('#reviewMsg', '만들기를 요청했어요. 보통 몇 분 걸려요. 잠시 뒤 새로고침해 주세요.', 'ok');
+    else setMsg('#reviewMsg', '요청하지 못했어요. ' + await errText(res), 'err');
+  }catch(e){
+    setMsg('#reviewMsg', '요청하지 못했어요. ' + (e.message || e), 'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '지금 만들기';
+  }
+}
+
+async function submitSetup(ev){
+  ev.preventDefault();
+  const owner = $('#ownerInput').value.trim().replace(/^@/, '');
+  const repo = $('#repoInput').value.trim() || 'readlog-data';
+  const token = $('#tokenInput').value.trim() || (validCfg(S.cfg) ? S.cfg.token : '');
+  if(!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(owner)){ setMsg('#setupMsg', 'GitHub 아이디를 확인해 주세요. (영문, 숫자, - 만 가능)', 'err'); return; }
+  if(!/^[A-Za-z0-9._-]{1,100}$/.test(repo)){ setMsg('#setupMsg', '저장소 이름을 확인해 주세요.', 'err'); return; }
+  if(!token){ setMsg('#setupMsg', '토큰을 입력해 주세요.', 'err'); return; }
+  const c = { owner, repo, token };
+  const btn = $('#setupSave');
+  btn.disabled = true; btn.textContent = '확인 중…';
+  setMsg('#setupMsg', '');
+  try{
+    const res = await gh(repoPath(c), { cfg:c });
+    if(res.ok){
+      S.cfg = c; lsSet(K.cfg, c);
+      $('#tokenInput').value = '';
+      S.loaded = false; S.entries = []; S.pending = null; S.review = null; S.detail = null; S.card = null;
+      showSetup(false); setTab(S.tab);
+      loadAll();
+    }else{
+      setMsg('#setupMsg', '연결하지 못했어요. ' + await errText(res), 'err');
+    }
+  }catch(e){
+    setMsg('#setupMsg', '연결하지 못했어요. ' + (e.message || e), 'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '연결 확인 후 저장';
+  }
+}
+
+function clearSetup(){
+  if(!confirm('이 기기에 저장된 연결 정보(토큰 포함)와 임시저장 메모를 지울까요?')) return;
+  lsDel(K.cfg); lsDel(K.draft);
+  S.cfg = null; S.entries = []; S.pending = null; S.review = null; S.loaded = false; S.detail = null; S.card = null; S.book = ''; S.typing = false;
+  $('#memo').value = '';
+  renderAll();
+  showSetup(true);
+  setMsg('#setupMsg', '이 기기에서 설정을 지웠어요.', 'ok');
+}
+
+function openBook(name){
+  S.detail = name;
+  setTab('books');
+  renderBooks(); renderDetail();
+}
+
+/* ---------- 받아쓰기 (Web Speech API) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false, micBase = '';
+function joinText(a, b){ if(!b) return a; if(!a) return b; return /\s$/.test(a) ? a + b : a + ' ' + b; }
+function setMicUI(){
+  const b = $('#micBtn');
+  b.classList.toggle('rec', listening);
+  b.textContent = listening ? '■ 받아쓰기 멈춤' : '🎤 받아쓰기';
+  b.setAttribute('aria-pressed', listening ? 'true' : 'false');
+}
+function stopMic(){ try{ rec && rec.stop(); }catch(e){} }
+function toggleMic(){
+  if(listening){ stopMic(); return; }
+  const memo = $('#memo');
+  try{
+    rec = new SR();
+    rec.lang = 'ko-KR'; rec.continuous = true; rec.interimResults = true;
+  }catch(e){ setMsg('#writeMsg', '이 브라우저에서는 받아쓰기를 쓸 수 없어요.', 'err'); return; }
+  micBase = memo.value;
+  rec.onresult = (ev) => {
+    let fin = '', interim = '';
+    for(let i = ev.resultIndex; i < ev.results.length; i++){
+      const t = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) fin += t; else interim += t;
+    }
+    if(fin.trim()) micBase = joinText(micBase, fin.trim());
+    memo.value = joinText(micBase, interim.trim());
+    saveDraft();
+  };
+  rec.onerror = (ev) => {
+    const m = { 'not-allowed':'마이크 권한을 허용해 주세요.', 'service-not-allowed':'마이크 권한을 허용해 주세요.', 'no-speech':'말소리가 들리지 않았어요.', 'network':'받아쓰기에 네트워크가 필요해요.' }[ev.error];
+    if(ev.error !== 'aborted') setMsg('#writeMsg', m || ('받아쓰기 오류: ' + ev.error), 'err');
+  };
+  rec.onend = () => { listening = false; memo.value = micBase; saveDraft(); setMicUI(); };
+  try{ rec.start(); listening = true; setMsg('#writeMsg', '듣고 있어요. 다 말하면 멈춤을 누르세요.', 'info'); }
+  catch(e){ setMsg('#writeMsg', '받아쓰기를 시작하지 못했어요.', 'err'); }
+  setMicUI();
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click', (ev) => {
+  const tab = ev.target.closest('[data-tab]');
+  if(tab){ setTab(tab.dataset.tab); return; }
+  const el = ev.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.dataset.act;
+  switch(act){
+    case 'refresh': loadAll(); break;
+    case 'open-setup': showSetup(true); $('#ownerInput').focus(); break;
+    case 'close-setup': showSetup(false); setTab(S.tab); break;
+    case 'clear-setup': clearSetup(); break;
+    case 'pick-book': S.book = el.dataset.book || ''; S.typing = false; saveDraft(); renderChips(); break;
+    case 'type-book':
+      S.typing = true; $('#bookInput').value = S.book; renderChips(); $('#bookInput').focus(); break;
+    case 'clear-book': S.book = ''; S.typing = false; $('#bookInput').value = ''; saveDraft(); renderChips(); break;
+    case 'save': saveMemo(); break;
+    case 'mic': toggleMic(); break;
+    case 'open-book': openBook(el.dataset.book || ''); break;
+    case 'close-book': S.detail = null; renderBooks(); renderDetail(); window.scrollTo(0, 0); break;
+    case 'tag':
+      ev.stopPropagation();
+      S.query = el.dataset.tag || ''; $('#searchInput').value = S.query; S.detail = null;
+      setTab('books'); renderBooks(); renderDetail(); break;
+    case 'reveal': S.revealed = true; renderCard(); break;
+    case 'next-card': pickCard(); renderCard(); break;
+    case 'dispatch': dispatchReview(); break;
+  }
+});
+$('#setupForm').addEventListener('submit', submitSetup);
+$('#memo').addEventListener('input', () => { if(listening) micBase = $('#memo').value; saveDraft(); });
+$('#bookInput').addEventListener('input', () => {
+  S.book = $('#bookInput').value.replace(/\s+/g, ' ').trimStart();
+  saveDraft();
+  $('#bookSel').innerHTML = S.book ? '선택한 책: <b>' + esc(S.book) + '</b>' : '책을 고르지 않으면 메모만 저장돼요.';
+});
+$('#bookInput').addEventListener('keydown', (ev) => {
+  if(ev.key === 'Enter'){ ev.preventDefault(); S.book = S.book.trim(); S.typing = false; saveDraft(); renderChips(); $('#memo').focus(); }
+});
+$('#searchInput').addEventListener('input', () => { S.query = $('#searchInput').value; S.detail = null; renderBooks(); renderDetail(); });
+document.querySelector('.tabs').addEventListener('keydown', (ev) => {
+  const order = ['write','books','review'];
+  const i = order.indexOf(S.tab);
+  if(ev.key === 'ArrowRight' || ev.key === 'ArrowLeft'){
+    const n = order[(i + (ev.key === 'ArrowRight' ? 1 : 2)) % 3];
+    setTab(n); document.getElementById('t-' + n).focus();
+  }
+});
+
+/* ---------- 시작 ---------- */
+if(SR) $('#micBtn').hidden = false;
+restoreDraft();
+const savedTab = lsGet(K.tab);
+S.tab = typeof savedTab === 'string' ? savedTab : 'write';
+const cfg = lsGet(K.cfg);
+if(validCfg(cfg)){
+  S.cfg = { owner:cfg.owner, repo:cfg.repo, token:cfg.token };
+  showSetup(false); setTab(S.tab); renderAll(); loadAll();
+}else{
+  renderAll(); showSetup(true);
+}
+})();
+</script>
+</body>
+</html>
